@@ -7,9 +7,11 @@ use Validator;
 use App\Http\Controllers\Controller;
 use Illuminate\Foundation\Auth\ThrottlesLogins;
 use Illuminate\Foundation\Auth\AuthenticatesAndRegistersUsers;
+use Stripe\Stripe;
 
 class AuthController extends Controller
 {
+
     /*
     |--------------------------------------------------------------------------
     | Registration & Login Controller
@@ -28,7 +30,8 @@ class AuthController extends Controller
      *
      * @var string
      */
-    protected $redirectTo = '/';
+
+    protected $redirectTo = 'home';
 
     /**
      * Create a new authentication controller instance.
@@ -38,6 +41,8 @@ class AuthController extends Controller
     public function __construct()
     {
         $this->middleware($this->guestMiddleware(), ['except' => 'logout']);
+        //Intialize the Stripe singleton
+        \Stripe\Stripe::setApiKey(env('STRIPE_KEY_SECRET'));
     }
 
     /**
@@ -49,9 +54,17 @@ class AuthController extends Controller
     protected function validator(array $data)
     {
         return Validator::make($data, [
-            'name' => 'required|max:255',
+            'first_name' => 'required|max:255',
+            'last_name' => 'required|max:255',
             'email' => 'required|email|max:255|unique:users',
             'password' => 'required|min:6|confirmed',
+            'state' => 'required',
+            'line1' => 'required',
+            'city'=> 'required',
+            'postal_code' => 'required',
+            'dob' => 'required',
+            'ssn_last_4' => 'required',
+
         ]);
     }
 
@@ -63,10 +76,33 @@ class AuthController extends Controller
      */
     protected function create(array $data)
     {
+    $account = \Stripe\Account::create(
+      array(
+        "country" => "US",
+        "managed" => true,
+        'legal_entity' => [
+          'first_name' => $data['first_name'],
+          'last_name' => $data['last_name'],
+          'line1' => $data['line1'],
+          'city' => $data['city'],
+          'state' => $data['state'],
+          'postal_code' => $data['postal_code'],
+          'dob' => $data['dob'],
+          'ssn_last_4' => $data['ssn_last_4']
+          ],
+        'external_account' =>[
+          'object'=>'bank_account',
+          'account_number' => $data['account_number'],
+          'routing_number' => $data['routing_number'],
+          'country' => 'US',
+          'currency' => 'USD',
+          ]));
         return User::create([
-            'name' => $data['name'],
+            'name' => $data['first_name']. ' ' . $data['last_name'],
             'email' => $data['email'],
             'password' => bcrypt($data['password']),
+            'stripe_public_key' => $account->keys->public,
+            'stripe_private_key' => $account->keys->private
         ]);
     }
 }

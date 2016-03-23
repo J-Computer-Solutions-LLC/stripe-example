@@ -12,7 +12,7 @@ class AddStripeKeysToUser extends Migration
      */
     public function up()
     {
-        Schema::table('user', function (Blueprint $table) {
+        Schema::table('users', function (Blueprint $table) {
             //
             $table->string('stripe_public_key');
             $table->string('stripe_private_key');
